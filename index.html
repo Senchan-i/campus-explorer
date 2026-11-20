@@ -11,67 +11,69 @@
 
     <h1>AI vs. Campus Explorers</h1>
 
-    <h2>位置情報</h2>
+    <h2>端末の向き・傾き</h2>
 
-    <button id="locationButton">
-        位置情報を取得
+    <button id="orientationButton">
+        センサーを開始
     </button>
 
-    <p>緯度：<span id="latitude">-</span></p>
-    <p>経度：<span id="longitude">-</span></p>
-    <p>精度：<span id="accuracy">-</span></p>
+    <p>alpha：<span id="alpha">-</span>°</p>
+    <p>beta：<span id="beta">-</span>°</p>
+    <p>gamma：<span id="gamma">-</span>°</p>
 
-    <p id="locationStatus"></p>
+    <p id="orientationStatus"></p>
 
 
     <script>
 
-        // 「位置情報を取得」ボタン
-        document.getElementById("locationButton").addEventListener("click", () => {
+        // 「センサーを開始」ボタン
+        document.getElementById("orientationButton").addEventListener("click", async () => {
 
-            // ブラウザが位置情報に対応しているか確認
-            if (!navigator.geolocation) {
-                document.getElementById("locationStatus").textContent =
-                    "このブラウザは位置情報に対応していません。";
-                return;
+            // iPhoneなど、許可を求める必要がある場合
+            if (
+                typeof DeviceOrientationEvent !== "undefined" &&
+                typeof DeviceOrientationEvent.requestPermission === "function"
+            ) {
+                try {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+
+                    if (permission !== "granted") {
+                        document.getElementById("orientationStatus").textContent =
+                            "センサーの使用が許可されませんでした。";
+                        return;
+                    }
+
+                } catch (error) {
+                    document.getElementById("orientationStatus").textContent =
+                        "センサーの許可取得に失敗しました。";
+                    return;
+                }
             }
 
-            document.getElementById("locationStatus").textContent =
-                "位置情報を取得しています...";
+            // センサー情報を受け取る
+            window.addEventListener("deviceorientation", handleOrientation);
 
-            // 現在位置を取得
-            navigator.geolocation.getCurrentPosition(
-
-                // 成功した場合
-                (position) => {
-
-                    const latitude = position.coords.latitude;
-                    const longitude = position.coords.longitude;
-                    const accuracy = position.coords.accuracy;
-
-                    document.getElementById("latitude").textContent =
-                        latitude;
-
-                    document.getElementById("longitude").textContent =
-                        longitude;
-
-                    document.getElementById("accuracy").textContent =
-                        accuracy + " m";
-
-                    document.getElementById("locationStatus").textContent =
-                        "位置情報を取得しました！";
-                },
-
-                // 失敗した場合
-                (error) => {
-
-                    document.getElementById("locationStatus").textContent =
-                        "位置情報を取得できませんでした。エラー：" +
-                        error.message;
-                }
-            );
-
+            document.getElementById("orientationStatus").textContent =
+                "センサーを取得しています！";
         });
+
+
+        // センサーの値が変化したときに呼ばれる
+        function handleOrientation(event) {
+
+            const alpha = event.alpha;
+            const beta = event.beta;
+            const gamma = event.gamma;
+
+            document.getElementById("alpha").textContent =
+                alpha !== null ? alpha.toFixed(1) : "-";
+
+            document.getElementById("beta").textContent =
+                beta !== null ? beta.toFixed(1) : "-";
+
+            document.getElementById("gamma").textContent =
+                gamma !== null ? gamma.toFixed(1) : "-";
+        }
 
     </script>
 
