@@ -13,7 +13,7 @@
 
 
     <!-- ==================== -->
-    <!-- センサー開始 -->
+    <!-- センサー -->
     <!-- ==================== -->
 
     <h2>端末の向き・傾き</h2>
@@ -30,49 +30,106 @@
 
 
     <!-- ==================== -->
-    <!-- 写真撮影 -->
+    <!-- 撮影 -->
     <!-- ==================== -->
 
-    <h2>写真撮影</h2>
+    <h2>撮影</h2>
 
-    <input
-        type="file"
-        id="cameraInput"
-        accept="image/*"
-        capture="environment"
-    >
+    <button id="startButton">
+        撮影開始
+    </button>
 
-    <p id="photoStatus"></p>
+    <p id="shootingStatus"></p>
 
-    <img
-        id="photoPreview"
-        style="max-width: 100%; display: none;"
-    >
+
+    <!-- GPS取得後に表示する -->
+    <div id="cameraArea" style="display: none;">
+
+        <p>
+            その場で止まってください。
+        </p>
+
+        <p>
+            GPSの取得が完了しました。
+            写真を撮影してください。
+        </p>
+
+        <input
+            type="file"
+            id="cameraInput"
+            accept="image/*"
+            capture="environment"
+        >
+
+    </div>
+
+
+    <!-- ==================== -->
+    <!-- 撮影した写真 -->
+    <!-- ==================== -->
+
+    <div id="photoArea" style="display: none;">
+
+        <h2>撮影した写真</h2>
+
+        <img
+            id="photoPreview"
+            style="max-width: 100%;"
+        >
+
+    </div>
 
 
     <!-- ==================== -->
     <!-- 撮影情報 -->
     <!-- ==================== -->
 
-    <h2>撮影情報</h2>
+    <div id="infoArea" style="display: none;">
 
-    <p>緯度：<span id="latitude">-</span></p>
-    <p>経度：<span id="longitude">-</span></p>
-    <p>精度：<span id="accuracy">-</span></p>
+        <h2>撮影情報</h2>
 
-    <p>alpha：<span id="photoAlpha">-</span>°</p>
-    <p>beta：<span id="photoBeta">-</span>°</p>
-    <p>gamma：<span id="photoGamma">-</span>°</p>
+        <p>
+            緯度：
+            <span id="latitude">-</span>
+        </p>
 
-    <p>撮影日時：<span id="timestamp">-</span></p>
+        <p>
+            経度：
+            <span id="longitude">-</span>
+        </p>
 
-    <p id="locationStatus"></p>
+        <p>
+            精度：
+            <span id="accuracy">-</span>
+        </p>
+
+        <p>
+            alpha：
+            <span id="photoAlpha">-</span>°
+        </p>
+
+        <p>
+            beta：
+            <span id="photoBeta">-</span>°
+        </p>
+
+        <p>
+            gamma：
+            <span id="photoGamma">-</span>°
+        </p>
+
+        <p>
+            撮影日時：
+            <span id="timestamp">-</span>
+        </p>
+
+    </div>
 
 
     <script>
 
         // ========================================
-        // 現在のセンサー情報を保存しておく
+        // 現在のセンサー情報
         // ========================================
 
         let currentAlpha = null;
@@ -81,13 +138,21 @@
 
 
         // ========================================
-        // 端末の向き・傾き
+        // 撮影時のGPS情報
+        // ========================================
+
+        let currentLatitude = null;
+        let currentLongitude = null;
+        let currentAccuracy = null;
+
+
+        // ========================================
+        // センサー開始
         // ========================================
 
         document.getElementById("orientationButton")
             .addEventListener("click", async () => {
 
-                // iPhoneなどで許可が必要な場合
                 if (
                     typeof DeviceOrientationEvent !== "undefined" &&
                     typeof DeviceOrientationEvent.requestPermission === "function"
@@ -129,28 +194,117 @@
             });
 
 
-        // センサーの値が変化したとき
+        // ========================================
+        // センサー情報を更新
+        // ========================================
+
         function handleOrientation(event) {
 
             currentAlpha = event.alpha;
             currentBeta = event.beta;
             currentGamma = event.gamma;
 
-            document.getElementById("alpha").textContent =
+
+            document.getElementById("alpha")
+                .textContent =
                 currentAlpha !== null
                     ? currentAlpha.toFixed(1)
                     : "-";
 
-            document.getElementById("beta").textContent =
+
+            document.getElementById("beta")
+                .textContent =
                 currentBeta !== null
                     ? currentBeta.toFixed(1)
                     : "-";
 
-            document.getElementById("gamma").textContent =
+
+            document.getElementById("gamma")
+                .textContent =
                 currentGamma !== null
                     ? currentGamma.toFixed(1)
                     : "-";
+
         }
+
+
+        // ========================================
+        // 撮影開始
+        // ========================================
+
+        document.getElementById("startButton")
+            .addEventListener("click", () => {
+
+                document.getElementById("shootingStatus")
+                    .textContent =
+                    "📍 位置情報を取得しています...";
+
+
+                // GPSに対応しているか確認
+                if (!navigator.geolocation) {
+
+                    document.getElementById("shootingStatus")
+                        .textContent =
+                        "このブラウザは位置情報に対応していません。";
+
+                    return;
+                }
+
+
+                // GPS取得
+                navigator.geolocation.getCurrentPosition(
+
+                    (position) => {
+
+                        // GPS情報を保存
+                        currentLatitude =
+                            position.coords.latitude;
+
+                        currentLongitude =
+                            position.coords.longitude;
+
+                        currentAccuracy =
+                            position.coords.accuracy;
+
+
+                        // 画面に表示
+                        document.getElementById("latitude")
+                            .textContent =
+                            currentLatitude;
+
+                        document.getElementById("longitude")
+                            .textContent =
+                            currentLongitude;
+
+                        document.getElementById("accuracy")
+                            .textContent =
+                            currentAccuracy.toFixed(1) + " m";
+
+
+                        // ステータス変更
+                        document.getElementById("shootingStatus")
+                            .textContent =
+                            "📍 位置情報を取得しました！";
+
+
+                        // カメラを表示
+                        document.getElementById("cameraArea")
+                            .style.display = "block";
+
+                    },
+
+
+                    (error) => {
+
+                        document.getElementById("shootingStatus")
+                            .textContent =
+                            "位置情報を取得できませんでした。";
+
+                    }
+
+                );
+
+            });
 
 
         // ========================================
@@ -160,7 +314,8 @@
         document.getElementById("cameraInput")
             .addEventListener("change", (event) => {
 
-                const file = event.target.files[0];
+                const file =
+                    event.target.files[0];
 
                 if (!file) {
                     return;
@@ -174,11 +329,11 @@
                 const imageURL =
                     URL.createObjectURL(file);
 
-                const photoPreview =
-                    document.getElementById("photoPreview");
+                document.getElementById("photoPreview")
+                    .src = imageURL;
 
-                photoPreview.src = imageURL;
-                photoPreview.style.display = "block";
+                document.getElementById("photoArea")
+                    .style.display = "block";
 
 
                 // ------------------------------
@@ -194,7 +349,7 @@
 
 
                 // ------------------------------
-                // アングル
+                // 撮影時のアングル
                 // ------------------------------
 
                 document.getElementById("photoAlpha")
@@ -216,71 +371,17 @@
                         : "-";
 
 
-                document.getElementById("photoStatus")
-                    .textContent =
-                    "写真を撮影しました！";
-
-
                 // ------------------------------
-                // GPS取得
+                // 撮影情報を表示
                 // ------------------------------
 
-                if (!navigator.geolocation) {
+                document.getElementById("infoArea")
+                    .style.display = "block";
 
-                    document.getElementById("locationStatus")
-                        .textContent =
-                        "このブラウザは位置情報に対応していません。";
 
-                    return;
-                }
-
-                document.getElementById("locationStatus")
+                document.getElementById("shootingStatus")
                     .textContent =
-                    "位置情報を取得しています...";
-
-
-                navigator.geolocation.getCurrentPosition(
-
-                    (position) => {
-
-                        const latitude =
-                            position.coords.latitude;
-
-                        const longitude =
-                            position.coords.longitude;
-
-                        const accuracy =
-                            position.coords.accuracy;
-
-
-                        document.getElementById("latitude")
-                            .textContent =
-                            latitude;
-
-                        document.getElementById("longitude")
-                            .textContent =
-                            longitude;
-
-                        document.getElementById("accuracy")
-                            .textContent =
-                            accuracy.toFixed(1) + " m";
-
-
-                        document.getElementById("locationStatus")
-                            .textContent =
-                            "位置情報を取得しました！";
-
-                    },
-
-                    (error) => {
-
-                        document.getElementById("locationStatus")
-                            .textContent =
-                            "位置情報を取得できませんでした。エラー：" +
-                            error.message;
-
-                    }
-                );
+                    "📸 撮影完了！";
 
             });
 
