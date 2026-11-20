@@ -45,6 +45,26 @@
 
     <p id="orientationStatus"></p>
 
+    <!-- ==================== -->
+    <!-- 写真撮影 -->
+    <!-- ==================== -->
+
+    <h2>写真撮影</h2>
+
+    <input
+        type="file"
+        id="cameraInput"
+        accept="image/*"
+        capture="environment"
+    >
+
+    <p id="photoStatus"></p>
+
+    <img
+        id="photoPreview"
+        style="max-width: 100%; display: none;"
+    >
+
 
     <script>
 
@@ -139,6 +159,8 @@
 
         });
 
+        
+
 
         // センサーの値が変化したときに呼ばれる
         function handleOrientation(event) {
@@ -157,6 +179,32 @@
                 gamma !== null ? gamma.toFixed(1) : "-";
 
         }
+
+        // ========================================
+        // 写真撮影
+        // ========================================
+
+        document.getElementById("cameraInput").addEventListener("change", (event) => {
+
+            const file = event.target.files[0];
+
+            if (!file) {
+                return;
+            }
+
+            // 撮影した写真を表示
+            const imageURL = URL.createObjectURL(file);
+
+            const photoPreview =
+                document.getElementById("photoPreview");
+
+            photoPreview.src = imageURL;
+            photoPreview.style.display = "block";
+
+            document.getElementById("photoStatus").textContent =
+                "写真を撮影しました！";
+
+        });
 
     </script>
 
