@@ -1,15 +1,80 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
+
 <head>
     <meta charset="UTF-8">
-    <title>Campus Explorer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI vs. Campus Explorers</title>
 </head>
 
 <body>
 
     <h1>AI vs. Campus Explorers</h1>
 
-    <p>これは私たちのWebアプリです。</p>
+    <h2>位置情報</h2>
+
+    <button id="locationButton">
+        位置情報を取得
+    </button>
+
+    <p>緯度：<span id="latitude">-</span></p>
+    <p>経度：<span id="longitude">-</span></p>
+    <p>精度：<span id="accuracy">-</span></p>
+
+    <p id="locationStatus"></p>
+
+
+    <script>
+
+        // 「位置情報を取得」ボタン
+        document.getElementById("locationButton").addEventListener("click", () => {
+
+            // ブラウザが位置情報に対応しているか確認
+            if (!navigator.geolocation) {
+                document.getElementById("locationStatus").textContent =
+                    "このブラウザは位置情報に対応していません。";
+                return;
+            }
+
+            document.getElementById("locationStatus").textContent =
+                "位置情報を取得しています...";
+
+            // 現在位置を取得
+            navigator.geolocation.getCurrentPosition(
+
+                // 成功した場合
+                (position) => {
+
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+
+                    document.getElementById("latitude").textContent =
+                        latitude;
+
+                    document.getElementById("longitude").textContent =
+                        longitude;
+
+                    document.getElementById("accuracy").textContent =
+                        accuracy + " m";
+
+                    document.getElementById("locationStatus").textContent =
+                        "位置情報を取得しました！";
+                },
+
+                // 失敗した場合
+                (error) => {
+
+                    document.getElementById("locationStatus").textContent =
+                        "位置情報を取得できませんでした。エラー：" +
+                        error.message;
+                }
+            );
+
+        });
+
+    </script>
 
 </body>
+
 </html>
