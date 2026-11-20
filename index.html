@@ -13,24 +13,7 @@
 
 
     <!-- ==================== -->
-    <!-- 位置情報 -->
-    <!-- ==================== -->
-
-    <h2>位置情報</h2>
-
-    <button id="locationButton">
-        位置情報を取得
-    </button>
-
-    <p>緯度：<span id="latitude">-</span></p>
-    <p>経度：<span id="longitude">-</span></p>
-    <p>精度：<span id="accuracy">-</span></p>
-
-    <p id="locationStatus"></p>
-
-
-    <!-- ==================== -->
-    <!-- 端末の向き・傾き -->
+    <!-- センサー開始 -->
     <!-- ==================== -->
 
     <h2>端末の向き・傾き</h2>
@@ -44,6 +27,7 @@
     <p>gamma：<span id="gamma">-</span>°</p>
 
     <p id="orientationStatus"></p>
+
 
     <!-- ==================== -->
     <!-- 写真撮影 -->
@@ -66,145 +50,239 @@
     >
 
 
+    <!-- ==================== -->
+    <!-- 撮影情報 -->
+    <!-- ==================== -->
+
+    <h2>撮影情報</h2>
+
+    <p>緯度：<span id="latitude">-</span></p>
+    <p>経度：<span id="longitude">-</span></p>
+    <p>精度：<span id="accuracy">-</span></p>
+
+    <p>alpha：<span id="photoAlpha">-</span>°</p>
+    <p>beta：<span id="photoBeta">-</span>°</p>
+    <p>gamma：<span id="photoGamma">-</span>°</p>
+
+    <p>撮影日時：<span id="timestamp">-</span></p>
+
+    <p id="locationStatus"></p>
+
+
     <script>
 
         // ========================================
-        // 位置情報
+        // 現在のセンサー情報を保存しておく
         // ========================================
 
-        document.getElementById("locationButton").addEventListener("click", () => {
-
-            if (!navigator.geolocation) {
-                document.getElementById("locationStatus").textContent =
-                    "このブラウザは位置情報に対応していません。";
-                return;
-            }
-
-            document.getElementById("locationStatus").textContent =
-                "位置情報を取得しています...";
-
-            navigator.geolocation.getCurrentPosition(
-
-                (position) => {
-
-                    const latitude = position.coords.latitude;
-                    const longitude = position.coords.longitude;
-                    const accuracy = position.coords.accuracy;
-
-                    document.getElementById("latitude").textContent =
-                        latitude;
-
-                    document.getElementById("longitude").textContent =
-                        longitude;
-
-                    document.getElementById("accuracy").textContent =
-                        accuracy + " m";
-
-                    document.getElementById("locationStatus").textContent =
-                        "位置情報を取得しました！";
-                },
-
-                (error) => {
-
-                    document.getElementById("locationStatus").textContent =
-                        "位置情報を取得できませんでした。エラー：" +
-                        error.message;
-                }
-            );
-
-        });
+        let currentAlpha = null;
+        let currentBeta = null;
+        let currentGamma = null;
 
 
         // ========================================
         // 端末の向き・傾き
         // ========================================
 
-        document.getElementById("orientationButton").addEventListener("click", async () => {
+        document.getElementById("orientationButton")
+            .addEventListener("click", async () => {
 
-            // iPhoneなど、許可を求める必要がある場合
-            if (
-                typeof DeviceOrientationEvent !== "undefined" &&
-                typeof DeviceOrientationEvent.requestPermission === "function"
-            ) {
-                try {
+                // iPhoneなどで許可が必要な場合
+                if (
+                    typeof DeviceOrientationEvent !== "undefined" &&
+                    typeof DeviceOrientationEvent.requestPermission === "function"
+                ) {
 
-                    const permission =
-                        await DeviceOrientationEvent.requestPermission();
+                    try {
 
-                    if (permission !== "granted") {
+                        const permission =
+                            await DeviceOrientationEvent.requestPermission();
 
-                        document.getElementById("orientationStatus").textContent =
-                            "センサーの使用が許可されませんでした。";
+                        if (permission !== "granted") {
+
+                            document.getElementById("orientationStatus")
+                                .textContent =
+                                "センサーの使用が許可されませんでした。";
+
+                            return;
+                        }
+
+                    } catch (error) {
+
+                        document.getElementById("orientationStatus")
+                            .textContent =
+                            "センサーの許可取得に失敗しました。";
 
                         return;
                     }
-
-                } catch (error) {
-
-                    document.getElementById("orientationStatus").textContent =
-                        "センサーの許可取得に失敗しました。";
-
-                    return;
                 }
-            }
 
-            // センサー情報を受け取る
-            window.addEventListener(
-                "deviceorientation",
-                handleOrientation
-            );
+                window.addEventListener(
+                    "deviceorientation",
+                    handleOrientation
+                );
 
-            document.getElementById("orientationStatus").textContent =
-                "センサーを取得しています！";
+                document.getElementById("orientationStatus")
+                    .textContent =
+                    "センサーを取得しています！";
 
-        });
-
-        
+            });
 
 
-        // センサーの値が変化したときに呼ばれる
+        // センサーの値が変化したとき
         function handleOrientation(event) {
 
-            const alpha = event.alpha;
-            const beta = event.beta;
-            const gamma = event.gamma;
+            currentAlpha = event.alpha;
+            currentBeta = event.beta;
+            currentGamma = event.gamma;
 
             document.getElementById("alpha").textContent =
-                alpha !== null ? alpha.toFixed(1) : "-";
+                currentAlpha !== null
+                    ? currentAlpha.toFixed(1)
+                    : "-";
 
             document.getElementById("beta").textContent =
-                beta !== null ? beta.toFixed(1) : "-";
+                currentBeta !== null
+                    ? currentBeta.toFixed(1)
+                    : "-";
 
             document.getElementById("gamma").textContent =
-                gamma !== null ? gamma.toFixed(1) : "-";
-
+                currentGamma !== null
+                    ? currentGamma.toFixed(1)
+                    : "-";
         }
+
 
         // ========================================
         // 写真撮影
         // ========================================
 
-        document.getElementById("cameraInput").addEventListener("change", (event) => {
+        document.getElementById("cameraInput")
+            .addEventListener("change", (event) => {
 
-            const file = event.target.files[0];
+                const file = event.target.files[0];
 
-            if (!file) {
-                return;
-            }
+                if (!file) {
+                    return;
+                }
 
-            // 撮影した写真を表示
-            const imageURL = URL.createObjectURL(file);
 
-            const photoPreview =
-                document.getElementById("photoPreview");
+                // ------------------------------
+                // 写真を表示
+                // ------------------------------
 
-            photoPreview.src = imageURL;
-            photoPreview.style.display = "block";
+                const imageURL =
+                    URL.createObjectURL(file);
 
-            document.getElementById("photoStatus").textContent =
-                "写真を撮影しました！";
+                const photoPreview =
+                    document.getElementById("photoPreview");
 
-        });
+                photoPreview.src = imageURL;
+                photoPreview.style.display = "block";
+
+
+                // ------------------------------
+                // 撮影日時
+                // ------------------------------
+
+                const timestamp =
+                    new Date();
+
+                document.getElementById("timestamp")
+                    .textContent =
+                    timestamp.toLocaleString();
+
+
+                // ------------------------------
+                // アングル
+                // ------------------------------
+
+                document.getElementById("photoAlpha")
+                    .textContent =
+                    currentAlpha !== null
+                        ? currentAlpha.toFixed(1)
+                        : "-";
+
+                document.getElementById("photoBeta")
+                    .textContent =
+                    currentBeta !== null
+                        ? currentBeta.toFixed(1)
+                        : "-";
+
+                document.getElementById("photoGamma")
+                    .textContent =
+                    currentGamma !== null
+                        ? currentGamma.toFixed(1)
+                        : "-";
+
+
+                document.getElementById("photoStatus")
+                    .textContent =
+                    "写真を撮影しました！";
+
+
+                // ------------------------------
+                // GPS取得
+                // ------------------------------
+
+                if (!navigator.geolocation) {
+
+                    document.getElementById("locationStatus")
+                        .textContent =
+                        "このブラウザは位置情報に対応していません。";
+
+                    return;
+                }
+
+                document.getElementById("locationStatus")
+                    .textContent =
+                    "位置情報を取得しています...";
+
+
+                navigator.geolocation.getCurrentPosition(
+
+                    (position) => {
+
+                        const latitude =
+                            position.coords.latitude;
+
+                        const longitude =
+                            position.coords.longitude;
+
+                        const accuracy =
+                            position.coords.accuracy;
+
+
+                        document.getElementById("latitude")
+                            .textContent =
+                            latitude;
+
+                        document.getElementById("longitude")
+                            .textContent =
+                            longitude;
+
+                        document.getElementById("accuracy")
+                            .textContent =
+                            accuracy.toFixed(1) + " m";
+
+
+                        document.getElementById("locationStatus")
+                            .textContent =
+                            "位置情報を取得しました！";
+
+                    },
+
+                    (error) => {
+
+                        document.getElementById("locationStatus")
+                            .textContent =
+                            "位置情報を取得できませんでした。エラー：" +
+                            error.message;
+
+                    }
+                );
+
+            });
 
     </script>
 
