@@ -2,9 +2,16 @@
 <html lang="ja">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>AI vs. Campus Explorers</title>
+
 
     <style>
 
@@ -13,11 +20,30 @@
             margin: 20px;
         }
 
+
         button {
             font-size: 18px;
             padding: 10px 20px;
             margin: 5px 0;
         }
+
+
+        input,
+        textarea {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 500px;
+            font-size: 18px;
+            padding: 10px;
+            margin-top: 5px;
+        }
+
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
 
         #camera {
             width: 100%;
@@ -27,6 +53,7 @@
             background-color: black;
         }
 
+
         #takePhotoButton {
             width: 100%;
             max-width: 500px;
@@ -35,14 +62,37 @@
             margin-top: 10px;
         }
 
+
         #photoPreview {
             width: 100%;
             max-width: 500px;
             margin-top: 10px;
         }
 
+
+        #registerButton {
+            width: 100%;
+            max-width: 500px;
+            font-size: 22px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+
         .section {
             margin-top: 30px;
+        }
+
+
+        .input-group {
+            margin-top: 20px;
+            max-width: 500px;
+        }
+
+
+        #registerStatus {
+            font-weight: bold;
+            margin-top: 15px;
         }
 
     </style>
@@ -56,7 +106,7 @@
 
 
     <!-- ====================================== -->
-    <!-- 端末の向き・傾き -->
+    <!-- センサー -->
     <!-- ====================================== -->
 
     <div class="section">
@@ -181,17 +231,17 @@
         </p>
 
         <p>
-            alpha：
+            方位（alpha）：
             <span id="photoAlpha">-</span>°
         </p>
 
         <p>
-            beta：
+            上下角度（beta）：
             <span id="photoBeta">-</span>°
         </p>
 
         <p>
-            gamma：
+            左右の傾き（gamma）：
             <span id="photoGamma">-</span>°
         </p>
 
@@ -203,7 +253,85 @@
     </div>
 
 
+    <!-- ====================================== -->
+    <!-- 問題情報入力 -->
+    <!-- ====================================== -->
+
+    <div
+        id="problemInputArea"
+        class="section"
+        style="display: none;"
+    >
+
+        <h2>問題情報</h2>
+
+
+        <div class="input-group">
+
+            <label for="placeName">
+                場所名
+            </label>
+
+            <input
+                type="text"
+                id="placeName"
+                placeholder="例：NITech 正門"
+            >
+
+        </div>
+
+
+        <div class="input-group">
+
+            <label for="description">
+                紹介文
+            </label>
+
+            <textarea
+                id="description"
+                placeholder="例：名古屋工業大学の正門です。"
+            ></textarea>
+
+        </div>
+
+
+        <button id="registerButton">
+            💾 問題として登録
+        </button>
+
+
+        <p id="registerStatus"></p>
+
+    </div>
+
+
+    <!-- ====================================== -->
+    <!-- Supabase -->
+    <!-- ====================================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
     <script>
+
+
+        // ==========================================
+        // Supabase設定
+        // ==========================================
+
+        const SUPABASE_URL =
+            "https://feakwjvyedqhalvzldiy.supabase.co";
+
+
+        const SUPABASE_PUBLISHABLE_KEY =
+            "sb_publishable_8XvING1KLsUjD49e3oj00A_6sYvoRV4";
+
+
+        const supabaseClient =
+            supabase.createClient(
+                SUPABASE_URL,
+                SUPABASE_PUBLISHABLE_KEY
+            );
 
 
         // ==========================================
@@ -216,12 +344,26 @@
 
 
         // ==========================================
-        // 撮影時のGPS情報
+        // GPS情報
         // ==========================================
 
         let currentLatitude = null;
         let currentLongitude = null;
         let currentAccuracy = null;
+
+
+        // ==========================================
+        // 撮影した画像
+        // ==========================================
+
+        let capturedImageURL = null;
+
+
+        // ==========================================
+        // 撮影日時
+        // ==========================================
+
+        let capturedAt = null;
 
 
         // ==========================================
@@ -240,7 +382,6 @@
             .addEventListener("click", async () => {
 
 
-                // iPhoneなどで許可が必要な場合
                 if (
                     typeof DeviceOrientationEvent !== "undefined" &&
                     typeof DeviceOrientationEvent.requestPermission === "function"
@@ -275,7 +416,6 @@
                 }
 
 
-                // センサー情報を受け取る
                 window.addEventListener(
                     "deviceorientation",
                     handleOrientation
@@ -291,11 +431,10 @@
 
 
         // ==========================================
-        // センサー情報を更新
+        // センサー情報更新
         // ==========================================
 
         function handleOrientation(event) {
-
 
             currentAlpha = event.alpha;
             currentBeta = event.beta;
@@ -343,7 +482,6 @@
                     "📍 位置情報を取得しています...";
 
 
-                // GPSに対応しているか確認
                 if (!navigator.geolocation) {
 
                     document
@@ -355,12 +493,7 @@
                 }
 
 
-                // GPS取得
                 navigator.geolocation.getCurrentPosition(
-
-                    // ------------------------------
-                    // GPS取得成功
-                    // ------------------------------
 
                     (position) => {
 
@@ -375,7 +508,6 @@
                             position.coords.accuracy;
 
 
-                        // GPS情報を表示
                         document
                             .getElementById("latitude")
                             .textContent =
@@ -400,15 +532,10 @@
                             "📍 位置情報を取得しました！";
 
 
-                        // カメラを起動
                         startCamera();
 
                     },
 
-
-                    // ------------------------------
-                    // GPS取得失敗
-                    // ------------------------------
 
                     (error) => {
 
@@ -421,9 +548,6 @@
 
                     },
 
-                    // ------------------------------
-                    // GPS取得オプション
-                    // ------------------------------
 
                     {
                         enableHighAccuracy: true,
@@ -442,23 +566,19 @@
 
         async function startCamera() {
 
-
             try {
-
 
                 cameraStream =
                     await navigator.mediaDevices.getUserMedia({
 
                         video: {
 
-                            // 背面カメラを優先
                             facingMode: {
                                 ideal: "environment"
                             }
 
                         },
 
-                        // マイクは使用しない
                         audio: false
 
                     });
@@ -472,7 +592,6 @@
                     cameraStream;
 
 
-                // カメラエリアを表示
                 document
                     .getElementById("cameraArea")
                     .style.display =
@@ -486,7 +605,6 @@
 
 
             } catch (error) {
-
 
                 console.error(error);
 
@@ -502,7 +620,7 @@
 
 
         // ==========================================
-        // 撮影ボタン
+        // 撮影
         // ==========================================
 
         document
@@ -514,7 +632,6 @@
                     document.getElementById("camera");
 
 
-                // Canvasを作成
                 const canvas =
                     document.createElement("canvas");
 
@@ -526,7 +643,6 @@
                     video.videoHeight;
 
 
-                // Canvasに現在のカメラ映像を描画
                 const context =
                     canvas.getContext("2d");
 
@@ -544,16 +660,14 @@
                 );
 
 
-                // 写真データに変換
-                const imageURL =
-                    canvas.toDataURL("image/jpeg");
+                capturedImageURL =
+                    canvas.toDataURL("image/jpeg", 0.9);
 
 
-                // 写真を表示
                 document
                     .getElementById("photoPreview")
                     .src =
-                    imageURL;
+                    capturedImageURL;
 
 
                 document
@@ -562,10 +676,7 @@
                     "block";
 
 
-                // ==================================
-                // 撮影した瞬間のアングルを記録
-                // ==================================
-
+                // 撮影時のセンサー値
                 document
                     .getElementById("photoAlpha")
                     .textContent =
@@ -590,26 +701,27 @@
                         : "-";
 
 
-                // ==================================
                 // 撮影日時
-                // ==================================
-
-                const timestamp =
+                capturedAt =
                     new Date();
 
 
                 document
                     .getElementById("timestamp")
                     .textContent =
-                    timestamp.toLocaleString();
+                    capturedAt.toLocaleString();
 
 
-                // ==================================
-                // 撮影情報を表示
-                // ==================================
-
+                // 情報表示
                 document
                     .getElementById("infoArea")
+                    .style.display =
+                    "block";
+
+
+                // 入力欄表示
+                document
+                    .getElementById("problemInputArea")
                     .style.display =
                     "block";
 
@@ -617,13 +729,10 @@
                 document
                     .getElementById("shootingStatus")
                     .textContent =
-                    "📸 撮影完了！";
+                    "📸 撮影完了！場所名と紹介文を入力してください。";
 
 
-                // ==================================
-                // カメラを停止
-                // ==================================
-
+                // カメラ停止
                 if (cameraStream) {
 
                     cameraStream
@@ -637,6 +746,371 @@
 
             });
 
+
+        // ==========================================
+        // 元写真IDを作成
+        // ==========================================
+
+        function createPhotoId() {
+
+
+            const now =
+                new Date();
+
+
+            const year =
+                now.getFullYear();
+
+
+            const month =
+                String(now.getMonth() + 1)
+                    .padStart(2, "0");
+
+
+            const day =
+                String(now.getDate())
+                    .padStart(2, "0");
+
+
+            const hour =
+                String(now.getHours())
+                    .padStart(2, "0");
+
+
+            const minute =
+                String(now.getMinutes())
+                    .padStart(2, "0");
+
+
+            const second =
+                String(now.getSeconds())
+                    .padStart(2, "0");
+
+
+            const random =
+                Math.random()
+                    .toString(36)
+                    .substring(2, 6);
+
+
+            return (
+                "P-" +
+                year +
+                month +
+                day +
+                "-" +
+                hour +
+                minute +
+                second +
+                "-" +
+                random
+            );
+
+        }
+
+
+        // ==========================================
+        // 問題として登録
+        // ==========================================
+
+        document
+            .getElementById("registerButton")
+            .addEventListener("click", registerProblem);
+
+
+        async function registerProblem() {
+
+
+            // --------------------------------------
+            // 入力内容
+            // --------------------------------------
+
+            const placeName =
+                document
+                    .getElementById("placeName")
+                    .value
+                    .trim();
+
+
+            const description =
+                document
+                    .getElementById("description")
+                    .value
+                    .trim();
+
+
+            // --------------------------------------
+            // 入力チェック
+            // --------------------------------------
+
+            if (!capturedImageURL) {
+
+                document
+                    .getElementById("registerStatus")
+                    .textContent =
+                    "写真がありません。";
+
+                return;
+            }
+
+
+            if (!placeName) {
+
+                document
+                    .getElementById("registerStatus")
+                    .textContent =
+                    "場所名を入力してください。";
+
+                return;
+            }
+
+
+            if (!description) {
+
+                document
+                    .getElementById("registerStatus")
+                    .textContent =
+                    "紹介文を入力してください。";
+
+                return;
+            }
+
+
+            if (
+                currentLatitude === null ||
+                currentLongitude === null
+            ) {
+
+                document
+                    .getElementById("registerStatus")
+                    .textContent =
+                    "位置情報がありません。";
+
+                return;
+            }
+
+
+            // --------------------------------------
+            // 登録中表示
+            // --------------------------------------
+
+            const registerButton =
+                document.getElementById(
+                    "registerButton"
+                );
+
+
+            registerButton.disabled = true;
+
+
+            registerButton.textContent =
+                "登録しています...";
+
+
+            document
+                .getElementById("registerStatus")
+                .textContent =
+                "画像とデータをSupabaseに保存しています。";
+
+
+            try {
+
+
+                // ==================================
+                // ① 元写真IDを作る
+                // ==================================
+
+                const photoId =
+                    createPhotoId();
+
+
+                // ==================================
+                // ② Data URL → Blob
+                // ==================================
+
+                const response =
+                    await fetch(capturedImageURL);
+
+
+                const imageBlob =
+                    await response.blob();
+
+
+                // ==================================
+                // ③ Storageへ画像アップロード
+                // ==================================
+
+                const filePath =
+                    photoId + ".jpg";
+
+
+                const {
+                    data: uploadData,
+                    error: uploadError
+                } =
+                    await supabaseClient
+                        .storage
+                        .from("problem-images")
+                        .upload(
+                            filePath,
+                            imageBlob,
+                            {
+                                contentType: "image/jpeg",
+                                upsert: false
+                            }
+                        );
+
+
+                if (uploadError) {
+
+                    throw uploadError;
+
+                }
+
+
+                console.log(
+                    "画像アップロード成功：",
+                    uploadData
+                );
+
+
+                // ==================================
+                // ④ 公開URLを取得
+                // ==================================
+
+                const {
+                    data: publicURLData
+                } =
+                    supabaseClient
+                        .storage
+                        .from("problem-images")
+                        .getPublicUrl(filePath);
+
+
+                const imageURL =
+                    publicURLData.publicUrl;
+
+
+                // ==================================
+                // ⑤ データベースへ保存
+                // ==================================
+
+                const {
+                    data: databaseData,
+                    error: databaseError
+                } =
+                    await supabaseClient
+                        .from("problems")
+                        .insert({
+
+                            photo_id: photoId,
+
+                            image_url: imageURL,
+
+                            latitude:
+                                currentLatitude,
+
+                            longitude:
+                                currentLongitude,
+
+                            gps_accuracy:
+                                currentAccuracy,
+
+                            alpha:
+                                currentAlpha,
+
+                            beta:
+                                currentBeta,
+
+                            gamma:
+                                currentGamma,
+
+                            place_name:
+                                placeName,
+
+                            description:
+                                description,
+
+                            captured_at:
+                                capturedAt.toISOString()
+
+                        })
+                        .select();
+
+
+                if (databaseError) {
+
+                    throw databaseError;
+
+                }
+
+
+                console.log(
+                    "データベース登録成功：",
+                    databaseData
+                );
+
+
+                // ==================================
+                // ⑥ 完了
+                // ==================================
+
+                document
+                    .getElementById("registerStatus")
+                    .textContent =
+                    "🎉 問題を登録しました！";
+
+
+                document
+                    .getElementById("shootingStatus")
+                    .textContent =
+                    "問題の登録が完了しました！";
+
+
+                registerButton.textContent =
+                    "登録完了";
+
+
+                // 元写真IDを表示
+                const registeredPhotoId =
+                    document.createElement("p");
+
+
+                registeredPhotoId.textContent =
+                    "元写真ID：" + photoId;
+
+
+                document
+                    .getElementById("problemInputArea")
+                    .appendChild(
+                        registeredPhotoId
+                    );
+
+
+            } catch (error) {
+
+
+                console.error(
+                    "登録エラー：",
+                    error
+                );
+
+
+                document
+                    .getElementById("registerStatus")
+                    .textContent =
+                    "❌ 登録に失敗しました。エラーを確認してください。";
+
+
+                registerButton.disabled = false;
+
+
+                registerButton.textContent =
+                    "💾 問題として登録";
+
+            }
+
+        }
 
     </script>
 
