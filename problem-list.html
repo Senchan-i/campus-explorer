@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>画像一覧</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f5f5f5;
+    }
+
+    header {
+      background: #222;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    main {
+      max-width: 800px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    .back {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #ddd;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+
+    .problem {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .problem img {
+      width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #eee;
+    }
+
+    .info {
+      margin-top: 15px;
+      line-height: 1.7;
+    }
+
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 80px;
+      margin-top: 5px;
+      padding: 10px;
+      font-size: 15px;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      font-size: 15px;
+    }
+
+    .save {
+      margin-top: 10px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #222;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>画像一覧</h1>
+</header>
+
+<main>
+
+  <button
+    class="back"
+    onclick="location.href='admin.html'">
+    ← 管理者メインへ戻る
+  </button>
+
+  <div id="list">
+    読み込み中...
+  </div>
+
+</main>
+
+<script>
+
+const SUPABASE_URL = "https://feakwjvyedqhalvzldiy.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_8XvING1KLsUjD49e3oj00A_6sYvoRV4";
+
+const supabaseClient =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+
+async function loadProblems() {
+
+  const list =
+    document.getElementById("list");
+
+  const { data, error } =
+    await supabaseClient
+      .from("problems")
+      .select("*")
+      .order("created_at", {
+        ascending: false
+      });
+
+  if (error) {
+    console.error(error);
+    list.textContent =
+      "読み込みに失敗しました。";
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    list.textContent =
+      "まだ画像が登録されていません。";
+    return;
+  }
+
+  list.innerHTML = "";
+
+  data.forEach(problem => {
+
+    const card =
+      document.createElement("div");
+
+    card.className = "problem";
+
+    card.innerHTML = `
+
+      <img
+        src="${problem.image_url}"
+        alt="元写真">
+
+      <div class="info">
+
+        <p>
+          <strong>写真ID：</strong>
+          ${escapeHtml(String(problem.photo_id ?? ""))}
+        </p>
+
+        <p>
+          <strong>撮影位置：</strong><br>
+          緯度：${problem.latitude ?? "-"}<br>
+          経度：${problem.longitude ?? "-"}
+        </p>
+
+        <p>
+          <strong>GPS精度：</strong>
+          ${problem.gps_accuracy ?? "-"}
+        </p>
+
+        <p>
+          <strong>カメラ情報：</strong><br>
+          α：${problem.alpha ?? "-"}<br>
+          β：${problem.beta ?? "-"}<br>
+          γ：${problem.gamma ?? "-"}
+        </p>
+
+        <label>
+          場所名
+          <input
+            id="place-${problem.id}"
+            value="${escapeAttribute(problem.place_name ?? "")}">
+        </label>
+
+        <br>
+
+        <label>
+          紹介文
+          <textarea
+            id="description-${problem.id}">${escapeHtml(problem.description ?? "")}</textarea>
+        </label>
+
+        <button
+          class="save"
+          onclick="saveProblem('${problem.id}')">
+          保存
+        </button>
+
+      </div>
+    `;
+
+    list.appendChild(card);
+  });
+}
+
+
+async function saveProblem(id) {
+
+  const placeName =
+    document.getElementById(
+      `place-${id}`
+    ).value;
+
+  const description =
+    document.getElementById(
+      `description-${id}`
+    ).value;
+
+  const { error } =
+    await supabaseClient
+      .from("problems")
+      .update({
+        place_name: placeName,
+        description: description
+      })
+      .eq("id", id);
+
+  if (error) {
+    console.error(error);
+    alert("保存に失敗しました。");
+    return;
+  }
+
+  alert("保存しました！");
+}
+
+
+function escapeHtml(text) {
+
+  const div =
+    document.createElement("div");
+
+  div.textContent = text;
+
+  return div.innerHTML;
+}
+
+
+function escapeAttribute(text) {
+
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+
+loadProblems();
+
+</script>
+
+</body>
+</html>

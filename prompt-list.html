@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>プロンプト一覧</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f5f5f5;
+    }
+
+    header {
+      background: #222;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    main {
+      max-width: 700px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .back {
+      background: #ddd;
+      margin-bottom: 20px;
+    }
+
+    .prompt {
+      background: white;
+      padding: 20px;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    .type {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .text {
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>プロンプト一覧</h1>
+</header>
+
+<main>
+
+  <button
+    class="back"
+    onclick="location.href='admin.html'">
+    ← 管理者メインへ戻る
+  </button>
+
+  <div id="list">
+    読み込み中...
+  </div>
+
+</main>
+
+<script>
+
+const SUPABASE_URL = "https://feakwjvyedqhalvzldiy.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_8XvING1KLsUjD49e3oj00A_6sYvoRV4";
+
+const supabaseClient =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+
+async function loadPrompts() {
+
+  const list =
+    document.getElementById("list");
+
+  const { data, error } =
+    await supabaseClient
+      .from("prompts")
+      .select("*")
+      .order("created_at", {
+        ascending: false
+      });
+
+  if (error) {
+    console.error(error);
+    list.textContent =
+      "読み込みに失敗しました。";
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    list.textContent =
+      "まだ登録されていません。";
+    return;
+  }
+
+  list.innerHTML = "";
+
+  data.forEach(prompt => {
+
+    const div =
+      document.createElement("div");
+
+    div.className = "prompt";
+
+    const typeName =
+      prompt.prompt_type === "change"
+        ? "内容変化"
+        : "内容非変化";
+
+    div.innerHTML = `
+      <div class="type">${typeName}</div>
+      <div class="text">${escapeHtml(prompt.prompt_text)}</div>
+    `;
+
+    list.appendChild(div);
+  });
+}
+
+
+function escapeHtml(text) {
+
+  const div =
+    document.createElement("div");
+
+  div.textContent = text;
+
+  return div.innerHTML;
+}
+
+
+loadPrompts();
+
+</script>
+
+</body>
+</html>

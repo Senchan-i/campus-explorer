@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>セットを生成</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f5f5f5;
+    }
+
+    header {
+      background: #222;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    button,
+    select {
+      padding: 10px 15px;
+      font-size: 15px;
+      border-radius: 8px;
+    }
+
+    button {
+      border: none;
+      cursor: pointer;
+    }
+
+    .back {
+      background: #ddd;
+      margin-bottom: 20px;
+    }
+
+    .generate {
+      background: #222;
+      color: white;
+      margin-top: 15px;
+    }
+
+    .save {
+      background: #333;
+      color: white;
+      margin-top: 15px;
+    }
+
+    .problem-select {
+      width: 100%;
+    }
+
+    .problem-preview {
+      margin-top: 15px;
+    }
+
+    .problem-preview img {
+      width: 250px;
+      max-width: 100%;
+      border-radius: 8px;
+    }
+
+    .slot {
+      border-top: 1px solid #ddd;
+      padding: 15px 0;
+    }
+
+    .slot-title {
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .difficulty {
+      font-weight: bold;
+    }
+
+    .change {
+      color: #444;
+    }
+
+    .no-change {
+      color: #666;
+    }
+
+    #message {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>セットを生成</h1>
+</header>
+
+<main>
+
+  <button
+    class="back"
+    onclick="location.href='admin.html'">
+    ← 管理者メインへ戻る
+  </button>
+
+
+  <div class="card">
+
+    <h2>① 元写真を選択</h2>
+
+    <select
+      id="problemSelect"
+      class="problem-select">
+
+      <option value="">
+        読み込み中...
+      </option>
+
+    </select>
+
+    <div
+      id="problemPreview"
+      class="problem-preview">
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <h2>② 12枚の出題予定を作成</h2>
+
+    <p>
+      内容変化：難易度5～1を各2枚
+      <br>
+      内容非変化：2枚
+    </p>
+
+    <button
+      class="generate"
+      onclick="generateSet()">
+      12枚の予定を作る
+    </button>
+
+    <div id="slots"></div>
+
+    <button
+      id="saveButton"
+      class="save"
+      style="display:none;"
+      onclick="saveSet()">
+      このセットを保存
+    </button>
+
+    <div id="message"></div>
+
+  </div>
+
+</main>
+
+
+<script>
+
+const SUPABASE_URL = "https://feakwjvyedqhalvzldiy.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_8XvING1KLsUjD49e3oj00A_6sYvoRV4";
+
+const supabaseClient =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+
+let problems = [];
+let prompts = [];
+let currentSet = [];
+
+
+async function loadData() {
+
+  const problemResult =
+    await supabaseClient
+      .from("problems")
+      .select("*")
+      .order("created_at", {
+        ascending: false
+      });
+
+  if (problemResult.error) {
+    console.error(problemResult.error);
+    return;
+  }
+
+  problems = problemResult.data || [];
+
+  const promptResult =
+    await supabaseClient
+      .from("prompts")
+      .select("*");
+
+  if (promptResult.error) {
+    console.error(promptResult.error);
+    return;
+  }
+
+  prompts = promptResult.data || [];
+
+  loadProblemSelect();
+}
+
+
+function loadProblemSelect() {
+
+  const select =
+    document.getElementById("problemSelect");
+
+  select.innerHTML =
+    `<option value="">元写真を選択してください</option>`;
+
+  problems.forEach(problem => {
+
+    const option =
+      document.createElement("option");
+
+    option.value = problem.id;
+
+    option.textContent =
+      `${problem.photo_id || "写真"}`
+      + ` - `
+      + `${problem.place_name || "場所名未設定"}`;
+
+    select.appendChild(option);
+  });
+
+  select.addEventListener(
+    "change",
+    showProblemPreview
+  );
+}
+
+
+function showProblemPreview() {
+
+  const id =
+    document.getElementById(
+      "problemSelect"
+    ).value;
+
+  const problem =
+    problems.find(
+      p => String(p.id) === String(id)
+    );
+
+  const preview =
+    document.getElementById(
+      "problemPreview"
+    );
+
+  if (!problem) {
+    preview.innerHTML = "";
+    return;
+  }
+
+  preview.innerHTML = `
+    <img src="${problem.image_url}">
+    <p>
+      ${escapeHtml(problem.place_name || "")}
+    </p>
+  `;
+}
+
+
+function shuffle(array) {
+
+  const copy = [...array];
+
+  for (
+    let i = copy.length - 1;
+    i > 0;
+    i--
+  ) {
+
+    const j =
+      Math.floor(
+        Math.random() * (i + 1)
+      );
+
+    [copy[i], copy[j]] =
+      [copy[j], copy[i]];
+  }
+
+  return copy;
+}
+
+
+function generateSet() {
+
+  const problemId =
+    document.getElementById(
+      "problemSelect"
+    ).value;
+
+  if (!problemId) {
+    alert("元写真を選択してください。");
+    return;
+  }
+
+
+  const changePrompts =
+    prompts.filter(
+      p => p.prompt_type === "change"
+    );
+
+  const noChangePrompts =
+    prompts.filter(
+      p => p.prompt_type === "no_change"
+    );
+
+
+  if (changePrompts.length < 10) {
+
+    alert(
+      "内容変化プロンプトが10個以上必要です。"
+    );
+
+    return;
+  }
+
+
+  if (noChangePrompts.length < 2) {
+
+    alert(
+      "内容非変化プロンプトが2個以上必要です。"
+    );
+
+    return;
+  }
+
+
+  const selectedChange =
+    shuffle(changePrompts)
+      .slice(0, 10);
+
+  const selectedNoChange =
+    shuffle(noChangePrompts)
+      .slice(0, 2);
+
+
+  const difficulties =
+    [
+      5, 5,
+      4, 4,
+      3, 3,
+      2, 2,
+      1, 1
+    ];
+
+
+  currentSet = [];
+
+
+  for (
+    let i = 0;
+    i < 10;
+    i++
+  ) {
+
+    currentSet.push({
+
+      display_order: i + 1,
+
+      prompt_id:
+        selectedChange[i].id,
+
+      prompt_text:
+        selectedChange[i].prompt_text,
+
+      difficulty:
+        difficulties[i],
+
+      image_type:
+        "change",
+
+      image_url:
+        null
+    });
+  }
+
+
+  for (
+    let i = 0;
+    i < 2;
+    i++
+  ) {
+
+    currentSet.push({
+
+      display_order:
+        11 + i,
+
+      prompt_id:
+        selectedNoChange[i].id,
+
+      prompt_text:
+        selectedNoChange[i].prompt_text,
+
+      difficulty:
+        null,
+
+      image_type:
+        "no_change",
+
+      image_url:
+        null
+    });
+  }
+
+
+  displaySet();
+
+}
+
+
+function displaySet() {
+
+  const slots =
+    document.getElementById("slots");
+
+  slots.innerHTML = "";
+
+  currentSet.forEach(
+    (item, index) => {
+
+      const div =
+        document.createElement("div");
+
+      div.className = "slot";
+
+
+      const difficultyText =
+        item.difficulty === null
+          ? "難易度なし"
+          : `難易度：${item.difficulty}`;
+
+
+      const typeText =
+        item.image_type === "change"
+          ? "内容変化"
+          : "内容非変化";
+
+
+      div.innerHTML = `
+
+        <div class="slot-title">
+          ${index + 1}枚目
+        </div>
+
+        <div>
+          種類：${typeText}
+        </div>
+
+        <div class="difficulty">
+          ${difficultyText}
+        </div>
+
+        <div class="change">
+          今回の変換：
+          ${escapeHtml(item.prompt_text)}
+        </div>
+
+      `;
+
+      slots.appendChild(div);
+    }
+  );
+
+
+  document.getElementById(
+    "saveButton"
+  ).style.display = "inline-block";
+}
+
+
+async function saveSet() {
+
+  const problemId =
+    document.getElementById(
+      "problemSelect"
+    ).value;
+
+  if (!problemId || currentSet.length !== 12) {
+    alert("セットを作成してください。");
+    return;
+  }
+
+
+  const message =
+    document.getElementById("message");
+
+  message.textContent =
+    "保存中...";
+
+
+  const setResult =
+    await supabaseClient
+      .from("question_sets")
+      .insert({
+        problem_id: String(problemId)
+      })
+      .select()
+      .single();
+
+
+  if (setResult.error) {
+
+    console.error(setResult.error);
+
+    message.textContent =
+      "セットの保存に失敗しました。";
+
+    return;
+  }
+
+
+  const setId =
+    setResult.data.id;
+
+
+  const rows =
+    currentSet.map(item => ({
+
+      set_id: setId,
+
+      image_url:
+        item.image_url,
+
+      display_order:
+        item.display_order,
+
+      prompt_id:
+        item.prompt_id,
+
+      difficulty:
+        item.difficulty,
+
+      image_type:
+        item.image_type
+
+    }));
+
+
+  const imageResult =
+    await supabaseClient
+      .from("set_images")
+      .insert(rows);
+
+
+  if (imageResult.error) {
+
+    console.error(imageResult.error);
+
+    message.textContent =
+      "画像情報の保存に失敗しました。";
+
+    return;
+  }
+
+
+  message.textContent =
+    "セットを保存しました！";
+
+}
+
+
+function escapeHtml(text) {
+
+  const div =
+    document.createElement("div");
+
+  div.textContent = text;
+
+  return div.innerHTML;
+}
+
+
+loadData();
+
+</script>
+
+</body>
+</html>

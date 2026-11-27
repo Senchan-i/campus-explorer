@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>プロンプト入力</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f5f5f5;
+    }
+
+    header {
+      background: #222;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    main {
+      max-width: 700px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 100px;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 8px;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    .type-area {
+      margin-top: 15px;
+    }
+
+    .type-area label {
+      font-weight: normal;
+      margin-right: 20px;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 12px 18px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .save-button {
+      margin-top: 15px;
+      background: #222;
+      color: white;
+    }
+
+    .back-button {
+      background: #ddd;
+      margin-bottom: 20px;
+    }
+
+    .prompt-item {
+      border-top: 1px solid #ddd;
+      padding: 15px 0;
+    }
+
+    .prompt-type {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .delete-button {
+      margin-top: 8px;
+      background: #eee;
+    }
+
+    #message {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>プロンプト入力</h1>
+</header>
+
+<main>
+
+  <button class="back-button"
+          onclick="location.href='admin.html'">
+    ← 管理者メインへ戻る
+  </button>
+
+  <div class="card">
+
+    <h2>新しいプロンプトを登録</h2>
+
+    <label for="promptText">
+      今回の変換
+    </label>
+
+    <textarea
+      id="promptText"
+      placeholder="例：お菓子の家風に変更する">
+    </textarea>
+
+    <div class="type-area">
+
+      <label>
+        <input
+          type="radio"
+          name="promptType"
+          value="change"
+          checked>
+        内容変化
+      </label>
+
+      <label>
+        <input
+          type="radio"
+          name="promptType"
+          value="no_change">
+        内容非変化
+      </label>
+
+    </div>
+
+    <button class="save-button"
+            onclick="savePrompt()">
+      保存
+    </button>
+
+    <div id="message"></div>
+
+  </div>
+
+  <div class="card">
+
+    <h2>登録済みプロンプト</h2>
+
+    <div id="promptList">
+      読み込み中...
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+
+const SUPABASE_URL = "https://feakwjvyedqhalvzldiy.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_8XvING1KLsUjD49e3oj00A_6sYvoRV4";
+
+const supabaseClient =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+
+async function savePrompt() {
+
+  const promptText =
+    document.getElementById("promptText").value.trim();
+
+  const promptType =
+    document.querySelector(
+      'input[name="promptType"]:checked'
+    ).value;
+
+  const message =
+    document.getElementById("message");
+
+  if (!promptText) {
+    message.textContent =
+      "「今回の変換」を入力してください。";
+    return;
+  }
+
+  const { error } =
+    await supabaseClient
+      .from("prompts")
+      .insert({
+        prompt_text: promptText,
+        prompt_type: promptType
+      });
+
+  if (error) {
+    console.error(error);
+    message.textContent =
+      "保存に失敗しました。";
+    return;
+  }
+
+  message.textContent =
+    "保存しました！";
+
+  document.getElementById("promptText").value = "";
+
+  loadPrompts();
+}
+
+
+async function loadPrompts() {
+
+  const list =
+    document.getElementById("promptList");
+
+  const { data, error } =
+    await supabaseClient
+      .from("prompts")
+      .select("*")
+      .order("created_at", {
+        ascending: false
+      });
+
+  if (error) {
+    console.error(error);
+    list.textContent =
+      "読み込みに失敗しました。";
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    list.textContent =
+      "まだプロンプトが登録されていません。";
+    return;
+  }
+
+  list.innerHTML = "";
+
+  data.forEach(prompt => {
+
+    const item =
+      document.createElement("div");
+
+    item.className = "prompt-item";
+
+    const typeName =
+      prompt.prompt_type === "change"
+        ? "内容変化"
+        : "内容非変化";
+
+    item.innerHTML = `
+      <div class="prompt-type">
+        ${typeName}
+      </div>
+
+      <div>
+        ${escapeHtml(prompt.prompt_text)}
+      </div>
+
+      <button
+        class="delete-button"
+        onclick="deletePrompt(${prompt.id})">
+        削除
+      </button>
+    `;
+
+    list.appendChild(item);
+  });
+}
+
+
+async function deletePrompt(id) {
+
+  if (!confirm("このプロンプトを削除しますか？")) {
+    return;
+  }
+
+  const { error } =
+    await supabaseClient
+      .from("prompts")
+      .delete()
+      .eq("id", id);
+
+  if (error) {
+    console.error(error);
+    alert("削除に失敗しました。");
+    return;
+  }
+
+  loadPrompts();
+}
+
+
+function escapeHtml(text) {
+
+  const div =
+    document.createElement("div");
+
+  div.textContent = text;
+
+  return div.innerHTML;
+}
+
+
+loadPrompts();
+
+</script>
+
+</body>
+</html>

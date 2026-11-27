@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>セット一覧</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f5f5f5;
+    }
+
+    header {
+      background: #222;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .back {
+      background: #ddd;
+      margin-bottom: 20px;
+    }
+
+    .set {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .set img {
+      width: 200px;
+      max-width: 100%;
+      border-radius: 8px;
+    }
+
+    .item {
+      border-top: 1px solid #ddd;
+      padding: 12px 0;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>セット一覧</h1>
+</header>
+
+<main>
+
+  <button
+    class="back"
+    onclick="location.href='admin.html'">
+    ← 管理者メインへ戻る
+  </button>
+
+  <div id="list">
+    読み込み中...
+  </div>
+
+</main>
+
+
+<script>
+
+const SUPABASE_URL = "https://feakwjvyedqhalvzldiy.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_8XvING1KLsUjD49e3oj00A_6sYvoRV4";
+
+const supabaseClient =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+
+async function loadSets() {
+
+  const list =
+    document.getElementById("list");
+
+
+  const { data: sets, error } =
+    await supabaseClient
+      .from("question_sets")
+      .select("*")
+      .order("created_at", {
+        ascending: false
+      });
+
+
+  if (error) {
+
+    console.error(error);
+
+    list.textContent =
+      "読み込みに失敗しました。";
+
+    return;
+  }
+
+
+  if (!sets || sets.length === 0) {
+
+    list.textContent =
+      "まだセットがありません。";
+
+    return;
+  }
+
+
+  list.innerHTML = "";
+
+
+  for (const set of sets) {
+
+    const { data: images } =
+      await supabaseClient
+        .from("set_images")
+        .select("*")
+        .eq("set_id", set.id)
+        .order("display_order", {
+          ascending: true
+        });
+
+
+    const problem =
+      await getProblem(set.problem_id);
+
+
+    const div =
+      document.createElement("div");
+
+    div.className = "set";
+
+
+    let html = `
+
+      <h2>
+        セット ${set.id}
+      </h2>
+
+    `;
+
+
+    if (problem) {
+
+      html += `
+
+        <p>
+          元写真：
+          ${escapeHtml(
+            problem.place_name || ""
+          )}
+        </p>
+
+        <img
+          src="${problem.image_url}"
+          alt="元写真">
+
+      `;
+    }
+
+
+    html += `<h3>出題画像</h3>`;
+
+
+    (images || []).forEach(
+      item => {
+
+        const typeName =
+          item.image_type === "change"
+            ? "内容変化"
+            : "内容非変化";
+
+
+        html += `
+
+          <div class="item">
+
+            <strong>
+              ${item.display_order}枚目
+            </strong>
+
+            <br>
+
+            種類：
+            ${typeName}
+
+            <br>
+
+            難易度：
+            ${item.difficulty ?? "なし"}
+
+          </div>
+
+        `;
+      }
+    );
+
+
+    div.innerHTML = html;
+
+    list.appendChild(div);
+  }
+}
+
+
+async function getProblem(problemId) {
+
+  const { data } =
+    await supabaseClient
+      .from("problems")
+      .select("*")
+      .eq("id", problemId)
+      .maybeSingle();
+
+  return data;
+}
+
+
+function escapeHtml(text) {
+
+  const div =
+    document.createElement("div");
+
+  div.textContent = text;
+
+  return div.innerHTML;
+}
+
+
+loadSets();
+
+</script>
+
+</body>
+</html>
